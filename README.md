@@ -1,1 +1,1 @@
-# Flow-Free-Solver
+# Numberlink Algorithm
