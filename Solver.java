@@ -33,65 +33,130 @@ public class Solver{
         points.put(new Cell(4, 3),'F');
         points.put(new Cell(4, 2),'f');
 
-        printGrid(points, rows, cols);
+        Printer.printGrid(points, rows, cols);
         System.out.println(puzzleSolved(points, rows, cols));
     }
-
-    record Cell(int x, int y){
-        boolean inBounds(int rows, int cols) {
-            return x >= 0 && x < cols && y >= 0 && y < rows;
+    public static Map<Cell, Character> givens(Map<Cell, Character> roots, Map<Cell, Character> children, int rows, int cols){
+        Map<Cell, Character> givens = new HashMap<>();
+        Map<Cell, Character> remainingRoots = new HashMap<>();
+        for(Map.Entry<Cell, Character> r1 : roots.entrySet()){
+            Cell point1 = r1.getKey();
+            Cell point2 = r1.getKey();
+            int x1 = point1.x();
+            int y1 = point1.y();
+            int x2=0;
+            int y2=0;
+            //list to store root pairs
+            for(Map.Entry<Cell, Character> r2 : roots.entrySet()){
+                List<Cell> rootPair = new ArrayList<>();
+                point2 = r2.getKey();
+                if(givens.containsKey(point1)) break;
+                if(roots.get(point1).equals(roots.get(point2))&&!point1.equals(point2)){
+                    rootPair.add(point1);
+                    rootPair.add(point2);
+                    x2 = point2.x();
+                    y2 = point2.y();
+                }
+            }
+            double dist = Math.sqrt(Math.pow(x1-x2, 2) + Math.pow(y1-y2, 2));
+            if(dist == 2.0){
+                int mX = (x1+x2)/2;
+                int mY = (y1+y2)/2;
+                Cell midpoint = new Cell(mX, mY);
+                givens.put(midpoint, Character.toLowerCase(roots.get(point1)));
+            }
+            else{
+                remainingRoots.put(point1, roots.get(point1));
+                remainingRoots.put(point2, roots.get(point2));
+            }
         }
-        Cell north() { return new Cell(x, y + 1); }
-        Cell east()  { return new Cell(x + 1, y); }
-        Cell south() { return new Cell(x, y - 1); }
-        Cell west()  { return new Cell(x - 1, y); }
-        Cell NW()    { return new Cell(x-1, y+1); }
-        Cell SW()    { return new Cell(x-1, y-1); }
-        Cell NE()    { return new Cell(x+1, y+1); }
-        Cell SE()    { return new Cell(x+1, y-1); }
+        Map<Cell, Character> allPoints = combineThree(roots, givens, children);
+        if(puzzleSolved(allPoints, rows, cols)) return givens;
+
+        //solution when all other paths are complete
+        // Map<Cell, Character> possiblePoints = new HashMap<>();
+        for(Map.Entry<Cell, Character> root : remainingRoots.entrySet()){
+            List<Cell> nesw = NESW(root.getKey());
+            for (Cell nb : nesw) {
+                if (allPoints.containsKey(nb)) break;
+                // else{
+                    
+                // }
+            }
+        }
+        return givens;
+    }
+
+    public static List<Cell> NESW(Cell p){
+        Cell n = p.north();
+        Cell e = p.east();
+        Cell s = p.south();
+        Cell w = p.west();
+        return List.of(n,e,s,w);
+    }
+
+    public static Map<Cell, Character> combinePoints(Map<Cell, Character> i, Map<Cell, Character> ii){
+        Map<Cell, Character> points = new HashMap<>();
+        for(Map.Entry<Cell, Character> entry : i.entrySet()){
+            points.put(entry.getKey(), entry.getValue());
+        }
+        for(Map.Entry<Cell, Character> entry : ii.entrySet()){
+            points.put(entry.getKey(), entry.getValue());
+        }
+        return points;
+    }
+
+    public static Map<Cell, Character> combineThree(Map<Cell, Character> i, Map<Cell, Character> ii, Map<Cell, Character> iii){
+        return combinePoints(i, combinePoints(ii,iii));
+    }
+
+    
+
+    public static boolean isContinuous(Map<Cell, Character> points, Cell root, int rows, int cols){
+        for(Map.Entry<Cell, Character> entry : points.entrySet()){
+        //only run for color of root
+        if ((points.get(entry.getKey())+"").equalsIgnoreCase(points.get(root)+"")){
+        if(!root.inBounds(rows, cols)) return false;
+        List<Cell> nesw = NESW(root);
+        Cell ne = root.NE();
+        Cell nw = root.NW();
+        Cell se = root.SE();
+        Cell sw = root.SW();
+        char ch = points.get(root);
+        int adj=0;
+        int rootAdj=0;
+        //corners of paths cannot touch
+        for (Cell nb: List.of(ne, nw, se, sw)){
+            if (points.containsKey(nb) &&
+            Character.toLowerCase(points.get(nb)) == Character.toLowerCase(ch)) return false;
+        }
+        // within each point check all points to see which are adjacent
+        for (Cell nb : nesw) {
+            if (points.containsKey(nb) &&
+            Character.toLowerCase(points.get(nb)) == Character.toLowerCase(ch)) {
+                if(isRoot(ch))rootAdj++;
+                else adj++;
+            }
+        }
+        if(
+            !((adj==2&&!isRoot(ch))||
+            (rootAdj==1&&isRoot(ch)))
+         ) return false;
+    }
+    }
+    return true;
     }
 
     public static boolean puzzleSolved(Map<Cell, Character> points, int rows, int cols){
         //if the map is full
         if(points.size()!=rows*cols) return false;
-        boolean borderRules = false;
         //each path borders itself once for a root, twice otherwise
-         Map<Character, Integer> roots = new HashMap<>();
-        for(Cell key: points.keySet()){
-            if(!key.inBounds(rows, cols)) return false;
-            Cell n = key.north();
-            Cell e = key.east();
-            Cell s = key.south();
-            Cell w = key.west();
-            Cell ne = key.NE();
-            Cell nw = key.NW();
-            Cell se = key.SE();
-            Cell sw = key.SW();
-            char ch = points.get(key);
-            int adj=0;
-            int rootAdj=0;
-            //corners of paths cannot touch
-            for (Cell nb: List.of(ne, nw, se, sw)){
-                if (points.containsKey(nb) &&
-                Character.toLowerCase(points.get(nb)) == Character.toLowerCase(ch)) return false;
-            }
-            // within each point check all points to see which are adjacent
-            for (Cell nb : List.of(n, e, s, w)) {
-                if (points.containsKey(nb) &&
-                Character.toLowerCase(points.get(nb)) == Character.toLowerCase(ch)) {
-                    if(isRoot(ch))rootAdj++;
-                    else adj++;
-                }
-            }
-            if(
-                (adj==2&&!isRoot(ch))||
-                (rootAdj==1&&isRoot(ch))
-             ) borderRules=true;
-            else{
-                System.out.println("fails at " + key);
-                return false;
-            }
+        //AKA test that each color is continuous
+        Map<Character, Integer> roots = new HashMap<>();
+        for(Map.Entry<Cell, Character> root: points.entrySet()){
+            if(!isContinuous(points, root.getKey(), rows, cols)) return false;
             //check if there are two roots per color
+            char ch = points.get(root.getKey());
             if (isRoot(ch)) {
                 roots.put(ch, roots.getOrDefault(ch, 0) + 1);
             }
@@ -99,46 +164,39 @@ public class Solver{
         for (int count : roots.values()) {
             if (count != 2) return false;
         }
-        return borderRules;
+        return true;
     }
 
     public static boolean isRoot(char c){
         return Character.isUpperCase(c);
     }
 
-    //print grid to visualize points
-    public static void printGrid(Map<Cell, Character> points, int rows, int cols) {
-    for (int row = 0; row < rows; row++) {
-        // Top border of row
-        for (int col = 0; col < cols; col++) {
-            System.out.print("+---");
-        }
-        System.out.println("+");
-        // Cell contents
-        for (int col = 0; col < cols; col++) {
-            char cellChar = ' '; // default empty
-            for (Cell key : points.keySet()) {
-                if (key.x() == col && key.y() == row) {
-                    cellChar = points.get(key); 
-                    break;
-                }
+    public static boolean cutsPath(Map<Cell, Character> points, char pathColor){
+        //make hashmap of root colored path
+        Map<Cell, Character> colorSet = new HashMap<>();
+        for(Map.Entry<Cell, Character> point : points.entrySet()){
+            if(points.get(point.getKey())==pathColor){
+                colorSet.put(point.getKey(), points.get(point.getKey()));
             }
-
-            System.out.printf("| %c ", cellChar);
         }
-        System.out.println("|");
+        //r1 will move towards r2 until they collide
+        //then r1 will pick a direction and go around the obstacle until it reaches r2
+        //if r1 reaches border it will backtrack in other direction
+        //if it reaches border again cutsPath = true
+        return false;
     }
 
-    // Bottom border
-    for (int col = 0; col < cols; col++) {
-        System.out.print("+---");
-    }
-    System.out.println("+");
-}
 }
 
 
-/**Heuristics:
+/**Strategies
+ * one path cannot block another
+ * roots on the outside "want" to go around the outside - connected to first?
+ * Do first the ones where we know the solution exactly
+ * 
+ * 
+ * 
+ * Heuristics:
  * paths cannot cross
  * all squares must be filled
  * paths must fit within bounds
