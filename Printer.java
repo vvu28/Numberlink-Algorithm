@@ -2,7 +2,10 @@ import java.util.Map;
 
 public class Printer {
     //print grid to visualize points
-    public static void printGrid(Map<Cell, Character> points, int rows, int cols) {
+    public static void printGrid(Puzzle puzzle) {
+    Map<Cell, Point> points = puzzle.getPoints();
+    int rows = puzzle.getRows();
+    int cols = puzzle.getCols();
     for (int row = 0; row < rows; row++) {
         // Top border of row
         for (int col = 0; col < cols; col++) {
@@ -14,11 +17,11 @@ public class Printer {
             char cellChar = ' '; // default empty
             for (Cell key : points.keySet()) {
                 if (key.x() == col && key.y() == row) {
-                    cellChar = points.get(key); 
+                    cellChar = points.get(key).color();
+                    if(points.get(key).isRoot()) cellChar = Character.toUpperCase(cellChar); 
                     break;
                 }
             }
-
             System.out.printf("| %c ", cellChar);
         }
         System.out.println("|");
