@@ -21,6 +21,16 @@ public class Puzzle{
     public int getCols(){
         return cols;
     }
+    public static Map<Cell, Point> getAllPoints(Map<Cell, Point> points, int rows, int cols){
+        Map<Cell, Point> allPoints = new HashMap<>(points);
+        for(int i = 0; i<rows; i++){
+            for(int j = 0; j<cols; j++){
+                Cell newCell = new Cell(j, i);
+                if (!allPoints.containsKey(newCell)) allPoints.put(newCell, null);
+            }
+        }
+        return allPoints;
+    }
 
     //setter methods
     public void setPoints(Map<Cell, Point> points){
@@ -38,7 +48,7 @@ public class Puzzle{
         Map<Point, Integer> roots = new HashMap<>();
         for(Map.Entry<Cell, Point> root: points.entrySet()){
             if(!root.getKey().inBounds(rows, cols)) return false;
-            if(!Solver.pathIsComplete(points, root.getValue().color())) return false;
+            if(!Solver.pathIsComplete(puzzle, root.getValue().color())) return false;
             //check if there are two roots per color
             Point val = root.getValue();
             if (val.isRoot()) {
