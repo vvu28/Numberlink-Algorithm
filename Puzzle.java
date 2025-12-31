@@ -2,7 +2,7 @@ import java.util.*;
 public class Puzzle{
     private final int rows;
     private final int cols;
-    private Map<Cell, Point> points;
+    private Map<Cell, Point> points; //this includes filled cells only
 
     //constructor
     public Puzzle(int rows, int cols, Map<Cell, Point> points) {
@@ -21,7 +21,7 @@ public class Puzzle{
     public int getCols(){
         return cols;
     }
-    public static Map<Cell, Point> getAllPoints(Map<Cell, Point> points, int rows, int cols){
+    public Map<Cell, Point> getAllPoints(){
         Map<Cell, Point> allPoints = new HashMap<>(points);
         for(int i = 0; i<rows; i++){
             for(int j = 0; j<cols; j++){
@@ -47,7 +47,7 @@ public class Puzzle{
         //AKA test that each color is continuous
         Map<Point, Integer> roots = new HashMap<>();
         for(Map.Entry<Cell, Point> root: points.entrySet()){
-            if(!root.getKey().inBounds(rows, cols)) return false;
+            if(!root.getKey().inBounds(puzzle)) return false;
             if(!Solver.pathIsComplete(puzzle, root.getValue().color())) return false;
             //check if there are two roots per color
             Point val = root.getValue();
