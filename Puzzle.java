@@ -3,12 +3,14 @@ public class Puzzle{
     private final int rows;
     private final int cols;
     private Map<Cell, Point> points; //this includes filled cells only
+    private Set<Path> paths;
 
     //constructor
-    public Puzzle(int rows, int cols, Map<Cell, Point> points) {
+    public Puzzle(int rows, int cols, Map<Cell, Point> points, Set<Path> paths) {
         this.rows = rows;
         this.cols = cols;
         this.points = points;
+        this.paths = paths;
     }
 
     //getter methods
@@ -20,6 +22,9 @@ public class Puzzle{
     }
     public int getCols(){
         return cols;
+    }
+    public Set<Path> getPaths(){
+        return paths;
     }
     public Map<Cell, Point> getAllPoints(){
         Map<Cell, Point> allPoints = new HashMap<>(points);
@@ -35,6 +40,9 @@ public class Puzzle{
     //setter methods
     public void setPoints(Map<Cell, Point> points){
         this.points=points;
+    }
+    public void setPaths(Set<Path> paths){
+        this.paths = paths;
     }
 
     public static boolean puzzleSolved(Puzzle puzzle){
