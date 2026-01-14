@@ -9,7 +9,7 @@ public record Cell(int x, int y){
     //map of diagonals of same color as entry
     static Map<Cell, Point> diagonalNBS(Cell cell, Point point, Puzzle puzzle){;
         Map<Cell, Point> allPoints = puzzle.getPoints();
-        List<Cell> diags = List.of(cell.NE(puzzle),cell.NW(puzzle), cell.SE(puzzle), cell.SW(puzzle));
+        List<Cell> diags = List.of(cell.NE(),cell.NW(), cell.SE(), cell.SW());
         Map<Cell, Point> diagonalNBS = new HashMap<>();
         for(Cell diag: diags){
             Point newPoint = new Point(point.color(), false);
@@ -22,12 +22,21 @@ public record Cell(int x, int y){
         return diagonalNBS;
     }
 
-    Cell north(Puzzle puzzle) { Cell n = new Cell(x, y + 1); if(n.inBounds(puzzle))return n; return null; }
-    Cell east(Puzzle puzzle)  { Cell e = new Cell(x + 1, y); if(e.inBounds(puzzle)) return e; return null;}
-    Cell south(Puzzle puzzle) { Cell s = new Cell(x, y - 1); if(s.inBounds(puzzle)) return s; return null;}
-    Cell west(Puzzle puzzle)  { Cell w = new Cell(x - 1, y); if(w.inBounds(puzzle)) return w; return null;}
-    Cell NW(Puzzle puzzle)    { Cell nw = new Cell(x-1, y+1); if(nw.inBounds(puzzle)) return nw; return null;}
-    Cell SW(Puzzle puzzle)    { Cell sw = new Cell(x-1, y-1); if(sw.inBounds(puzzle)) return sw; return null;}
-    Cell NE(Puzzle puzzle)    { Cell ne = new Cell(x+1, y+1); if(ne.inBounds(puzzle)) return ne; return null;}
-    Cell SE(Puzzle puzzle)    { Cell se = new Cell(x+1, y-1); if(se.inBounds(puzzle)) return se; return null;}
+    public List<Cell> neighbors(Puzzle puzzle){
+        List<Cell> neighbors = new ArrayList<>();
+        if(y>0) neighbors.add(this.south());
+        if(y<puzzle.getRows()-1) neighbors.add(this.north());
+        if(x>0) neighbors.add(this.west());
+        if(x<puzzle.getCols()-1) neighbors.add(this.east());
+        return neighbors;
+    }
+
+    Cell north() { return new Cell(x, y + 1); }
+    Cell east()  { return new Cell(x + 1, y); }
+    Cell south() { return new Cell(x, y - 1); }
+    Cell west()  { return new Cell(x - 1, y); }
+    Cell NW()    { return new Cell(x-1, y+1);}
+    Cell SW()    { return new Cell(x-1, y-1);}
+    Cell NE()    { return new Cell(x+1, y+1);}
+    Cell SE()    { return new Cell(x+1, y-1);}
 }

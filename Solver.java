@@ -32,62 +32,53 @@ public class Solver{
         roots.put(new Cell(2, 4),new Point('i', true));
         roots.put(new Cell(8, 5),new Point('i', true));
 
-        Puzzle puzzle = new Puzzle(rows, cols, roots, null);
-        Set<Path> paths = initPaths(puzzle);
-        puzzle.setPaths(paths);
+        Map<Character, Path> paths = initPaths(roots);
+        Puzzle puzzle = new Puzzle(rows, cols, roots, paths);
+        System.out.println("test");
+
         Printer.printGrid(puzzle);
         System.out.println("\n\n\n");
-        // distTwo(puzzle);
-        forcedDirection(puzzle);
+        puzzle = forcedDirection(puzzle);
         Printer.printGrid(puzzle);
-        System.out.println(pickNextPoint(puzzle));
     }
 
-    public static Set<Path> initPaths(Puzzle puzzle){
-        Set<Path> paths = new HashSet<>();
-        Map<Cell, Point> points = puzzle.getPoints();
+    public static Map<Character, Path> initPaths(Map<Cell, Point> points){
+        Map<Character, Path> paths = new HashMap<>();
         Map<Character, Set<Cell>> cellsByColor = cellsByColor(points);
-        Map<Character, Set<Cell>> roots = roots(points);
+        // Map<Character, Set<Cell>> roots = roots(points);
         for(Map.Entry<Character, Set<Cell>> entry : cellsByColor.entrySet()){
             char color = entry.getKey();
-            Path path = new Path(color, roots.get(color), createPath(color, puzzle)); 
-            paths.add(path);
+            Path path = new Path(createPath(color, points)); 
+            paths.put(color, path);
         }
         return paths;
     }
 
-    public static void tryPaths(Puzzle puzzle){
+    public static boolean tryPaths(Puzzle puzzle){
+        if(puzzle.isSolved()) return true; //base case
         Map<Cell, Point> points = puzzle.getPoints();
-        Map<Character, Set<Cell>> coloredCells = cellsByColor(points);
+        // Map<Character, Path> paths = puzzle.getPaths();
+        // pick next point
         Cell next = pickNextPoint(puzzle);
-        Set<Cell> def = coloredCells.get(points.get(next).color());
-        Deque<Cell> path = new ArrayDeque<>(setToStack(def));
-        if(movesTotal(puzzle, next) == 0){
-        }
+        if (next == null) return false;
+        char color = points.get(next).color();
+        // List<Cell> path = paths.get(color).points();
         Set<Cell> moves = legalMoves(puzzle, next);
         for(Cell move : moves){
-            path.addLast(move);
-            tryPaths(puzzle);
+            Puzzle nextPuzz = puzzle.withMove(color, move);
+            if (tryPaths(nextPuzz)) return true;
         }
+        return false;
     }
 
-    public static Deque<Cell> createPath(char color, Puzzle puzzle){
-        Deque<Cell> path = new ArrayDeque<Cell>();
-        Map<Cell, Point> points = puzzle.getPoints();
+    public static List<Cell> createPath(char color, Map<Cell, Point> points){
+        List<Cell> path = new ArrayList<Cell>();
         Map<Character, Set<Cell>> coloredCells = cellsByColor(points);
         Set<Cell> members = coloredCells.get(color);
         for (Cell member : members){
             path.addLast(member);
         }
         return path;
-    }
-
-    public static Deque<Cell> setToStack(Set<Cell> cells){
-        Deque<Cell> stack = new ArrayDeque<>();
-        for(Cell cell : cells){
-            stack.push(cell);
-        }
-        return stack;
     }
 
     /* I need some criteria to pick the next point to build from.
@@ -108,14 +99,13 @@ public class Solver{
     public static Cell pickNextPoint(Puzzle puzzle){
     Map<Character, Set<Cell>> eps = endpoints(puzzle);
     Set<Cell> epSet = condenseMap(eps);
-    Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
     Cell best = null;
     double bestScore = Double.POSITIVE_INFINITY;
 
     for (Cell ep : epSet) {
         int moves = 0;
         int oob = 0;
-        for (Cell nb : neighbors.get(ep)) {
+        for (Cell nb : ep.neighbors(puzzle)) {
             if (nb == null) oob++;
             else if (!puzzle.getPoints().containsKey(nb)) moves++;
         }
@@ -147,95 +137,46 @@ public class Solver{
     }
     
     public static Set<Cell> legalMoves(Puzzle puzzle, Cell cell){
-        Map<Cell, Point> points = puzzle.getPoints();
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
-        Set<Cell> possibleDirections = new HashSet<>();
-        for(Cell nb : neighbors.get(cell)){
-            if((!points.containsKey(nb)) && nb != null) possibleDirections.add(nb);
+        Set<Cell> legalMoves = new HashSet<>();
+        List<Cell> nbs = cell.neighbors(puzzle);
+        if(nbs.size() == 0) return null;
+        for(Cell nb : nbs){
+            if(isValidMove(nb, cell, puzzle)) legalMoves.add(nb);
         }
-        return possibleDirections;
+        return legalMoves;
     }
 
     public static int movesTotal(Puzzle puzzle, Cell cell){
         Set<Cell> moves = legalMoves(puzzle, cell);
-        if(moves == null) return 0;
         return moves.size();
     }
 
-    public static void forcedDirection(Puzzle puzzle){
+    public static Puzzle forcedDirection(Puzzle puzzle){
         //execute for all points that do not belong to continuous colors, and then repeat for added points
-        Map<Cell, Point> allPoints = puzzle.getPoints();
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
-        Map<Cell, Point> forced = new HashMap<>();
-        // Map<Cell, List<Cell>> sameNeighbors = sameNeighbors(puzzle);
-        for(Map.Entry<Cell, Point> entry: allPoints.entrySet()){
-            int movesTotal = movesTotal(puzzle, entry.getKey());
-            if (movesTotal != 1 || pathIsComplete(puzzle, entry.getValue().color())) continue;
-            // System.out.println(entry + ": " + movesTotal);
-            for(Cell nb : neighbors.get(entry.getKey())){
-                if((!allPoints.containsKey(nb)) && nb != null){
-                    forced.put(nb, new Point(entry.getValue().color(), false));
-                    break;
-                }
-            }
-
-            // to check if any of the diagonals are roots of same color
-            // Map<Cell, Point> diags = Cell.diagonalNBS(entry.getKey(), entry.getValue(), puzzle);
-            // if(diags == null) continue;
-            // int rootDiags = 0;
-            // for(Map.Entry<Cell, Point> diag : diags.entrySet()){
-            //     if(diag.getValue().isRoot()) rootDiags++;
-            // }
-
-            // // for when a point is forced one direction so that it doesn't "snake"
-            // if (possibleDirections.size()==2 && diags.size() == 1 && rootDiags == 0){
-            //     // System.out.println(entry.getKey() + ", " + Cell.diagonalNBS(entry.getKey(), entry.getValue(), allPoints));
-            //     //add neighbor that will be adjacent once, not twice
-            //     // for(Cell direction : possibleDirections){
-            //     Cell direction1 = possibleDirections.get(0);
-            //     Cell direction2 = possibleDirections.get(1);
-            //     Cell direction = null;
-
-            //     //test direction1
-            //     {
-            //         Map<Cell, Point> newPoints = new HashMap<>(allPoints);
-            //         newPoints.put(direction1, new Point(color, false));
-            //         Map<Cell, List<Cell>> newNeighbors = filledNeighbors(puzzle); //todo make newPuzzle
-            //         // System.out.println(entry + ", " + direction1 + ", " + direction2);
-            //         List<Cell> dNB = new ArrayList<>(newNeighbors.get(direction1));
-            //         if(dNB != null && dNB.size()==1) direction = direction1;
-            //     }
-
-            //     //test direction2
-            //     if(direction == null){
-            //         Map<Cell, Point> newPoints = new HashMap<>(allPoints);
-            //         newPoints.put(direction2, new Point(color, false));
-            //         Map<Cell, List<Cell>> newNeighbors = filledNeighbors(puzzle);
-            //         List<Cell> dNB = new ArrayList<>(newNeighbors.get(direction2));
-            //         if(dNB != null && dNB.size()==1) direction = direction2;
-            //     }
-
-            //     if (direction == null) continue;
-            //     System.out.println(direction + ", " + color);
-            //     if(isValidMove(direction, puzzle)){
-            //         forced.put(direction, new Point(color, false));
-            //     }
-        //     }
-
+        Map<Cell, Point> points = puzzle.getPoints();
+        int forced = 0;
+        for(Map.Entry<Cell, Point> entry: points.entrySet()){
+            Cell cell = entry.getKey();
+            int movesTotal = movesTotal(puzzle, cell);
+            char color = entry.getValue().color();
+            // System.out.println(entry);
+            if (movesTotal != 1 || pathIsComplete(color, puzzle)) continue;
+            System.out.println(entry + ": " + movesTotal);
+            Cell legalMove = legalMoves(puzzle, cell).iterator().next();
+            puzzle = puzzle.withMove(color, legalMove);
+            Printer.printGrid(puzzle);
+            forced++;
         }
-        // Printer.printGrid(puzzle);
-        if (forced.size()!=0){
-            // System.out.println(forced);
-            puzzle.setPoints(combinePoints(puzzle.getPoints(), forced));
-            forcedEdges(puzzle);
-            forcedDirection(puzzle);
+        if (forced > 0){
+            puzzle = forcedEdges(puzzle);
+            return forcedDirection(puzzle);
         }
-        forcedEdges(puzzle);
+        return forcedEdges(puzzle);
     }
 
     //neighbors of same color
     public static Map<Cell, List<Cell>> sameNeighbors(Puzzle puzzle){
-        Map<Cell, Point> allPoints = puzzle.getPoints();
+        Map<Cell, Point> points = puzzle.getPoints();
         Map<Cell, List<Cell>> neighbors = filledNeighbors(puzzle);
         Map<Cell, List<Cell>> sameNeighbors = new HashMap<>();
         //go through all keys
@@ -243,8 +184,8 @@ public class Solver{
             List<Cell> same = new ArrayList<>();
             //go through list of neighbors
             for(Cell cell : entry.getValue()){
-                if(cell == null || allPoints.get(entry.getKey()) == null || allPoints.get(cell) == null) continue;
-                if(allPoints.get(entry.getKey()).color() == allPoints.get(cell).color()) same.add(cell);
+                if(cell == null || points.get(entry.getKey()) == null || points.get(cell) == null) continue;
+                if(points.get(entry.getKey()).color() == points.get(cell).color()) same.add(cell);
             }
             sameNeighbors.put(entry.getKey(), same);
         }
@@ -253,31 +194,16 @@ public class Solver{
 
     //doesn't include null neighbors
     public static Map<Cell, List<Cell>> filledNeighbors(Puzzle puzzle){
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
         Map<Cell, List<Cell>> filledNeighbors = new HashMap<>();
-        for(Map.Entry<Cell, Point> entry : puzzle.getAllPoints().entrySet()){
+        for(Map.Entry<Cell, Point> entry : puzzle.getPoints().entrySet()){
             List<Cell> filled = new ArrayList<>();
-            for(Cell nb : neighbors.get(entry.getKey())){
-                if(puzzle.getPoints().containsKey(nb)) filled.add(nb);
+            Cell cell = entry.getKey();
+            for(Cell nb : cell.neighbors(puzzle)){
+                filled.add(nb);
             }
-            filledNeighbors.put(entry.getKey(), filled);
+            filledNeighbors.put(cell, filled);
         }
         return filledNeighbors;
-    }
-
-    public static Map<Cell, List<Cell>> neighbors(Puzzle puzzle){
-        Map<Cell, Point> points = puzzle.getAllPoints();
-        Map<Cell, List<Cell>> neighbors = new HashMap<>();
-        for(Map.Entry<Cell, Point> entry: points.entrySet()){
-        Cell p = entry.getKey();
-        Cell n = p.north(puzzle);
-        Cell e = p.east(puzzle);
-        Cell s = p.south(puzzle);
-        Cell w = p.west(puzzle);
-        List<Cell> nesw = new ArrayList<>(Arrays.asList(n, e, s, w));
-        neighbors.put(p, nesw);
-        }
-        return neighbors;
     }
 
     public static Map<Character, Set<Cell>> endpoints(Puzzle puzzle){
@@ -298,47 +224,40 @@ public class Solver{
         return endpoints;
     }
 
-    //fix
-    public static boolean isValidMove(Cell moveKey, Puzzle puzzle){
-        if(!moveKey.inBounds(puzzle)) return false;
-        Map<Cell, Point> allPoints = new HashMap<>(puzzle.getAllPoints());
-        Point moveValue = allPoints.get(moveKey);
-        allPoints.put(moveKey, moveValue);
-        Puzzle newPuzzle = new Puzzle(puzzle.getRows(), puzzle.getCols(), allPoints, null);
-        Map<Cell, List<Cell>> sameNeighbors = sameNeighbors(newPuzzle);
-        // System.out.println(moveKey);
-        for(Cell nb : sameNeighbors.get(moveKey)){
-            // if the neighboring cell is a root and the root already has a neighbor, invalid
-            Point nbVal = allPoints.get(nb);
-            if(nbVal.isRoot() && sameNeighbors.get(nb).size()!=1) return false;
-        }
-        // System.out.println(moveKey + ", " + sameNeighbors.get(moveKey).size());
-        if(sameNeighbors.get(moveKey).size() == 1) return true;
-        return false;
+    public static boolean isValidMove(Cell to, Cell from, Puzzle puzzle){
+        Map<Cell, Point> points = new HashMap<>(puzzle.getPoints());
+        if(points.containsKey(to)) return false; //point already on grid
+        if(!to.inBounds(puzzle)) return false; //OB
+        if(!from.neighbors(puzzle).contains(to)) return false; //adjacency
+        char color = points.get(from).color();
+        //count same-color neighbors
+        Map<Cell, List<Cell>> sameNeighbors = sameNeighbors(puzzle.withMove(color, to));
+        if (sameNeighbors.get(to).size() != 1) return false;
+        if(puzzle.getPoints().get(from).isRoot() && sameNeighbors.get(from).size() != 1) return false;
+        return true;
     }
 
-    public static void forcedEdges(Puzzle puzzle){
+    public static Puzzle forcedEdges(Puzzle puzzle){
         Map<Cell, Point> edgePoints = edgePoints(puzzle);
-        Map<Cell, Point> forcedEdges = new HashMap<>();
         int rows = puzzle.getRows();
         int cols = puzzle.getCols();
         List<Cell> corners = new ArrayList<>(List.of(new Cell(0,0), new Cell(0, rows-1), new Cell(cols-1, 0), new Cell(cols-1, rows-1)));
         for(Map.Entry<Cell, Point> entry: edgePoints.entrySet()){
             for(Cell corner: corners){
                 if (puzzle.getPoints().containsKey(corner)) continue;
-                if (dist(corner, entry.getKey())==1){
-                    // System.out.println(entry);
-                    Point newPoint = new Point (entry.getValue().color(), false);
-                    forcedEdges.put(corner, newPoint);
+                char color = entry.getValue().color();
+                Cell cell = entry.getKey();
+                if (dist(corner, cell)==1){
+                    System.out.println("yay!" + cell);
+                    puzzle = puzzle.withMove(color, corner);
                 } 
             }
         }
-        puzzle.setPoints(combinePoints(puzzle.getPoints(), forcedEdges));
+       return puzzle;
     }
 
-    public static void distTwo(Puzzle puzzle){
+    public static Puzzle distTwo(Puzzle puzzle){
         Map<Character, Set<Cell>> endpoints = endpoints(puzzle);
-        Map<Cell, Point> givens = new HashMap<>();
         for(Map.Entry<Character, Set<Cell>> entry : endpoints.entrySet()){
             //save coordinates of 2 cells
             Iterator<Cell> it = entry.getValue().iterator();
@@ -350,50 +269,32 @@ public class Solver{
             int mX = (a.x()+b.x())/2;
             int mY = (a.y()+b.y())/2;
             Cell midpoint = new Cell(mX, mY);
-            givens.put(midpoint, new Point(entry.getKey(), false));
+            puzzle = puzzle.withMove(entry.getKey(), midpoint);
         }
-        puzzle.setPoints(combinePoints(givens, puzzle.getPoints()));
+        return puzzle;
     }
 
-    public static boolean pathIsComplete(Puzzle puzzle, char color){
-        Map<Cell, Point> points = puzzle.getPoints();
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
-        for(Map.Entry<Cell, Point> entry : points.entrySet()){
-        Point point = entry.getValue();
-        //only run for color of root
-        if(point.color()!=color) continue;
-        Cell key = entry.getKey();
-        int adj=0;
-        int rootAdj=0;
-        // within each point check all points to see which are adjacent
-        List<Cell> keysNeighbors = neighbors.get(key);
-        for (Cell nb : keysNeighbors) {
-            if (points.containsKey(nb) &&
-            (points.get(nb).color()) == point.color()) {
-                if(point.isRoot())rootAdj++;
-                else adj++;
-            }
+    public static boolean pathIsComplete(char color, Puzzle puzzle){
+        Path path = puzzle.getPaths().get(color);
+        List<Cell> points = path.points();
+        Map<Cell, Point> map = puzzle.getPoints();
+        Map<Cell, List<Cell>> sameNeighbors = sameNeighbors(puzzle);
+        for(Cell cell : points){
+            int same = sameNeighbors.get(cell).size();
+            boolean isRoot = map.get(cell).isRoot();
+            if(isRoot && same != 1) return false;
+            if(!isRoot && same != 2) return false;
         }
-        if(
-            !((adj==2&&!point.isRoot())||
-            (rootAdj==1&&point.isRoot()))
-         ) return false;
-    }
-    return true;
+        return true;
     }
 
     //A point on the edge with dist 1 to a corner will always travel to the corner
     public static Map<Cell, Point> edgePoints(Puzzle puzzle){
         Map<Cell, Point> allPoints = puzzle.getPoints();
         Map<Cell, Point> edgePoints = new HashMap<>();
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
         for(Map.Entry<Cell, Point> entry: allPoints.entrySet()){
-            List<Cell> nbs = neighbors.get(entry.getKey());
-            int OB = 0;
-            for(Cell nb: nbs){
-                if(nb==null) OB++;
-            }
-            if(OB==1) edgePoints.put(entry.getKey(), entry.getValue());
+            List<Cell> nbs = entry.getKey().neighbors(puzzle);
+            if(nbs.size() == 3) edgePoints.put(entry.getKey(), entry.getValue());
         }
         return edgePoints;
     }
@@ -402,7 +303,6 @@ public class Solver{
     //a path cannot come between two roots
     public static boolean cutsPath(Puzzle puzzle, char pathColor){
         Map<Cell, Point> points = puzzle.getPoints();
-        Map<Cell, List<Cell>> neighbors = neighbors(puzzle);
         //make hashmap of root colored path
         Map<Cell, Point> colorSet = new HashMap<>();
         //also set r1 and r2 as roots
@@ -416,8 +316,8 @@ public class Solver{
             }
         //travel shortest path r1-->r2
         //find distance between each nesw and r2 and choose shortest one
-        while(!pathIsComplete(puzzle, entry.getValue().color())){
-            List<Cell> pointsNB = neighbors.get(entry.getKey());
+        while(!pathIsComplete(entry.getValue().color(), puzzle)){
+            List<Cell> pointsNB = entry.getKey().neighbors(puzzle);
             Cell shortest = pointsNB.get(0);
             for(Cell d: pointsNB){
                 if(colorSet.containsKey(d)) break;
@@ -469,18 +369,6 @@ public class Solver{
         return children;
     }
 
-    // public static Map<Cell, Point> findRoots(Map<Cell, Point> points, char color){
-    //     Map<Cell, Point> roots = roots(points);
-    //     Map<Cell, Point> colored = new HashMap<>();
-    //     for(Map.Entry<Cell, Point> root: roots.entrySet()){
-    //         if(root.getValue().color()==color){
-    //             colored.put(root.getKey(), root.getValue());
-    //         }
-    //     }
-    //     //  System.out.println(roots);
-    //     return colored;
-    // }
-
     public static Map<Cell, Point> combinePoints(Map<Cell, Point> i, Map<Cell, Point> ii){
         Map<Cell, Point> points = new HashMap<>(i);
         for(Map.Entry<Cell, Point> entry : ii.entrySet()){
@@ -489,9 +377,6 @@ public class Solver{
         return points;
     }
 
-    // public static Map<Cell, Point> combineThree(Map<Cell, Point> i, Map<Cell, Point> ii, Map<Cell, Point> iii){
-    //     return combinePoints(i, combinePoints(ii,iii));
-    // }
     //Manhattan distance formula
     public static double dist(Cell one, Cell two){
         int x1 = one.x();

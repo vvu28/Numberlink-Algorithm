@@ -1,38 +1,27 @@
 import java.util.*;
-public class Path {
-    private final char color;
-    private final Set<Cell> roots;
-    private Deque<Cell> points;
+// public class Path {
+//     private final Set<Cell> roots;
 
-    public Path(char color, Set<Cell> roots, Deque<Cell> points){
-        this.color = color;
-        this.roots = roots;
-        this.points = points;
-    }
+final class Path {
+    private final List<Cell> cells;
+    // private final char color;
 
-    public char color(){
-        return color;
-    }
-    public Deque<Cell> points(){
-        return points;
-    }
-    public Set<Cell> roots(){
-        return roots;
+    public Path(List<Cell> cells) {
+        this.cells = List.copyOf(cells);
+        // this.color = color;
     }
 
-    public static List<Cell> allChildren(List<Cell> def, List<Cell> tent){
-        List<Cell> allChildren = new ArrayList<>(def);
-        for(Cell cell : tent){
-            allChildren.add(cell);
-        }
-        return allChildren;
+    public List<Cell> points() {
+        return cells;
     }
 
-    public static List<Cell> allPath(List<Cell> def, List<Cell> tent, Set<Cell> roots){
-        List<Cell> allPath = new ArrayList<>(allChildren(def, tent));
-        for(Cell cell : roots){
-            allPath.add(cell);
-        }
-        return allPath;
+    // public char color(){
+    //     return color;
+    // }
+
+    public Path extend(Cell next) {
+        List<Cell> newCells = new ArrayList<>(cells);
+        newCells.add(next);
+        return new Path(newCells);
     }
 }
