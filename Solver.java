@@ -39,10 +39,17 @@ public class Solver{
         Puzzle puzzle = new Puzzle(rows, cols, roots, paths);
         Printer.printGrid(puzzle);
         System.out.println("\n\n\n");
-        // System.out.println(canTravel(to, from, puzzle, new HashSet<>()));
-        // puzzle = forcedDirection(puzzle);
+
+        long start = System.nanoTime(); // timer
+
         puzzle = tryPaths(puzzle);
+
+        long end = System.nanoTime();
+        long durationNs = end - start;
         Printer.printGrid(puzzle);
+
+        System.out.println("\n\nnanoseconds:" + durationNs);
+        System.out.println("seconds:" + durationNs/(Math.pow(10, 9)));
     }
 
     public static Puzzle tryPaths(Puzzle puzzle){
@@ -65,10 +72,8 @@ public class Solver{
         List<Cell> moves = orderMoves(to, next, puzzle);
         for(Cell move : moves){
             Puzzle nextPuzz = puzzle.withMove(color, move);
-            Printer.printGrid(nextPuzz);
+            // Printer.printGrid(nextPuzz);
             if(cutsPath(nextPuzz)) continue;
-            nextPuzz = forcedDirection(nextPuzz);
-            Printer.printGrid(nextPuzz);
 
             Puzzle solved = tryPaths(nextPuzz);
             if (solved.isSolved()) return solved;
@@ -101,20 +106,27 @@ public class Solver{
     return false;
 }
 
-    // public static boolean reachable(Cell move, Puzzle puzzle){
-    //     Map<Character, List<Cell>> endpoints = endpoints(puzzle);
-    //     List<Cell> nbs = move.neighbors(puzzle);
+    public static boolean reachable(Cell move, char color, Puzzle puzzle){
+        Map<Character, List<Cell>> endpoints = endpoints(puzzle);
+        Map<Cell, List<Cell>> same = sameNeighbors(puzzle.withMove(color, move));
+        List<Cell> nbs = move.neighbors(puzzle);
 
-    //     //every empty neighbor must be reachable by both endpoints of some color
-    //     for(Cell nb : nbs){ // every neighbor
-    //         for(Map.Entry<Character, List<Cell>> entry : endpoints.entrySet()){ // endpoints of every color
-    //             List<Cell> eps = entry.getValue();
-    //             if(pathIsComplete(entry.getKey(), puzzle) || eps.size() != 2) continue;
-    //             if (canTravel(nb, eps.get(0), puzzle) || canTravel(nb, eps.get(1), puzzle)) return true;
-    //         }
-    //     }
-    //     return false;
-    // }
+        
+        for(Cell nb : nbs){
+            //if any neighbors of the move have are adj to path color 3x
+            List<Cell> sameNB = same.get(nb);
+            if(sameNB != null && sameNB.size() == 3) return false;
+
+            //every empty neighbor must be reachable by an endpoint of some color
+            for(Map.Entry<Character, List<Cell>> entry : endpoints.entrySet()){ // endpoints of every color
+                List<Cell> eps = entry.getValue();
+                if(pathIsComplete(entry.getKey(), puzzle) || eps.size() != 2) continue;
+                if (canTravel(nb, eps.get(0), puzzle) || canTravel(nb, eps.get(1), puzzle)) return true;
+            }
+        }
+
+        return false;
+    }
 
     //if one root cannot travel to another
     public static boolean cutsPath(Puzzle puzzle){
@@ -135,12 +147,13 @@ public class Solver{
     double bestScore = Double.POSITIVE_INFINITY;
 
     for (Cell ep : epSet) {
-        int moves = 4 - legalMoves(puzzle, ep).size();
+        int legalMoves = legalMoves(puzzle, ep).size(); 
+        if (legalMoves == 1) return ep; //automatically return ep if 1 possible move
         int oob = 4 - ep.neighbors(puzzle).size();
 
-        if (moves == 0) return ep; // immediate failure
+        if (legalMoves == 0) return ep; // immediate failure
         double score = 0;
-        score += moves * 10;                    // MRV (dominant)
+        score += legalMoves * 10;                    // MRV (dominant)
         score += epDistance(ep, points.get(ep).color(), puzzle);    // pull toward target
         score -= oob * 2;                       // edge pressure
 
@@ -189,27 +202,6 @@ public class Solver{
     public static int movesTotal(Puzzle puzzle, Cell cell){
         Set<Cell> moves = legalMoves(puzzle, cell);
         return moves.size();
-    }
-
-    public static Puzzle forcedDirection(Puzzle puzzle){
-        //execute for all points that do not belong to continuous colors, and then repeat for added points
-        Map<Cell, Point> points = puzzle.getPoints();
-        int forced = 0;
-        for(Map.Entry<Cell, Point> entry: points.entrySet()){
-            Cell cell = entry.getKey();
-            int movesTotal = movesTotal(puzzle, cell);
-            char color = entry.getValue().color();
-            if (movesTotal != 1 || pathIsComplete(color, puzzle)) continue;
-            Cell legalMove = legalMoves(puzzle, cell).iterator().next();
-            puzzle = puzzle.withMove(color, legalMove);
-            // Printer.printGrid(puzzle);
-            forced++;
-        }
-        if (forced > 0){
-            puzzle = forcedEdges(puzzle);
-            return forcedDirection(puzzle);
-        }
-        return forcedEdges(puzzle);
     }
 
     //neighbors of same color
@@ -292,42 +284,6 @@ public class Solver{
         return best;
     }
 
-    public static Puzzle forcedEdges(Puzzle puzzle){
-        Map<Cell, Point> edgePoints = edgePoints(puzzle);
-        int rows = puzzle.getRows();
-        int cols = puzzle.getCols();
-        List<Cell> corners = new ArrayList<>(List.of(new Cell(0,0), new Cell(0, rows-1), new Cell(cols-1, 0), new Cell(cols-1, rows-1)));
-        for(Map.Entry<Cell, Point> entry: edgePoints.entrySet()){
-            for(Cell corner: corners){
-                if (puzzle.getPoints().containsKey(corner)) continue;
-                char color = entry.getValue().color();
-                Cell cell = entry.getKey();
-                if (dist(corner, cell)==1){
-                    puzzle = puzzle.withMove(color, corner);
-                } 
-            }
-        }
-       return puzzle;
-    }
-
-    public static Puzzle distTwo(Puzzle puzzle){
-        Map<Character, List<Cell>> endpoints = endpoints(puzzle);
-        for(Map.Entry<Character, List<Cell>> entry : endpoints.entrySet()){
-            //save coordinates of 2 cells
-            List<Cell> eps = entry.getValue();
-            Cell a = eps.get(0);
-            Cell b = eps.get(1);
-            if(dist(a, b) != 2.0) continue;
-
-            //save midpoint
-            int mX = (a.x()+b.x())/2;
-            int mY = (a.y()+b.y())/2;
-            Cell midpoint = new Cell(mX, mY);
-            puzzle = puzzle.withMove(entry.getKey(), midpoint);
-        }
-        return puzzle;
-    }
-
     public static boolean pathIsComplete(char color, Puzzle puzzle){
         Path path = puzzle.getPaths().get(color);
         List<Cell> points = path.points();
@@ -379,18 +335,6 @@ public class Solver{
         return set;
     }
 
-
-    //A point on the edge with dist 1 to a corner will always travel to the corner
-    public static Map<Cell, Point> edgePoints(Puzzle puzzle){
-        Map<Cell, Point> allPoints = puzzle.getPoints();
-        Map<Cell, Point> edgePoints = new HashMap<>();
-        for(Map.Entry<Cell, Point> entry: allPoints.entrySet()){
-            List<Cell> nbs = entry.getKey().neighbors(puzzle);
-            if(nbs.size() == 3) edgePoints.put(entry.getKey(), entry.getValue());
-        }
-        return edgePoints;
-    }
-
     //to create a map that stores all points belonging to each color
     public static Map<Character, Set<Cell>> cellsByColor(Map<Cell, Point> points) {
         Map<Character, Set<Cell>> cellsByColor = new HashMap<>();
@@ -416,15 +360,6 @@ public class Solver{
         }
         return roots;
     }
-    public static List<Cell> children(Map<Cell, Point> points){
-        List<Cell> children = new ArrayList<>();
-        for(Map.Entry<Cell, Point> point: points.entrySet()){
-            if (!point.getValue().isRoot()) {
-                children.add(point.getKey());
-            }
-        }
-        return children;
-    }
 
     public static Map<Cell, Point> combinePoints(Map<Cell, Point> i, Map<Cell, Point> ii){
         Map<Cell, Point> points = new HashMap<>(i);
@@ -443,17 +378,3 @@ public class Solver{
         return Math.abs(x1-x2) + Math.abs(y1-y2);
     }
 }
-
-
-/**Strategies
- * one path cannot block another
- * roots on the outside "want" to go around the outside - connected to first?
- * Do first the ones where we know the solution exactly
- * 
- * 
- * Heuristics:
- * paths cannot cross
- * all squares must be filled
- * paths must fit within bounds
- * no "zigzagging"
- */
