@@ -24,19 +24,29 @@ public record Cell(int x, int y){
 
     public List<Cell> neighbors(Puzzle puzzle){
         List<Cell> neighbors = new ArrayList<>();
-        if(y>0) neighbors.add(this.south());
-        if(y<puzzle.getRows()-1) neighbors.add(this.north());
-        if(x>0) neighbors.add(this.west());
+        if(y<puzzle.getRows()-1) neighbors.add(this.south());
+        if(y>0)                  neighbors.add(this.north());
+        if(x>0)                  neighbors.add(this.west());
         if(x<puzzle.getCols()-1) neighbors.add(this.east());
         return neighbors;
     }
 
-    Cell north() { return new Cell(x, y + 1); }
+    public List<Cell> emptyNeighbors(Puzzle puzzle){
+        Map<Cell, Point> points = puzzle.getPoints();
+        List<Cell> neighbors = new ArrayList<>();
+        if(y<puzzle.getRows()-1 && !points.containsKey(south())) neighbors.add(this.south());
+        if(y>0 && !points.containsKey(north()))                  neighbors.add(this.north());
+        if(x>0 && !points.containsKey(west()))                   neighbors.add(this.west());
+        if(x<puzzle.getCols()-1 && !points.containsKey(east()))  neighbors.add(this.east());
+        return neighbors;
+    }
+
+    Cell north() { return new Cell(x, y - 1); }
     Cell east()  { return new Cell(x + 1, y); }
-    Cell south() { return new Cell(x, y - 1); }
+    Cell south() { return new Cell(x, y + 1); }
     Cell west()  { return new Cell(x - 1, y); }
-    Cell NW()    { return new Cell(x-1, y+1);}
-    Cell SW()    { return new Cell(x-1, y-1);}
-    Cell NE()    { return new Cell(x+1, y+1);}
-    Cell SE()    { return new Cell(x+1, y-1);}
+    Cell NW()    { return new Cell(x-1, y-1);}
+    Cell SW()    { return new Cell(x-1, y+1);}
+    Cell NE()    { return new Cell(x+1, y-1);}
+    Cell SE()    { return new Cell(x+1, y+1);}
 }

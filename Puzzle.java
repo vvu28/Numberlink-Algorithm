@@ -2,54 +2,92 @@ import java.util.*;
 final class Puzzle{
     private final int rows;
     private final int cols;
-    // private final Map<Cell, Point> allPoints;
     private final Map<Cell, Point> points; //this includes filled cells only
-    private final Map<Character, Path> paths;
+    private final Map<Character, List<Cell>> endpoints;
 
     //constructor
-    public Puzzle(int rows, int cols, Map<Cell, Point> points, Map<Character, Path> paths) {
+    public Puzzle(){
+        rows = 0;
+        cols = 0;
+        points = new HashMap<Cell, Point>();
+        endpoints = new HashMap<>();
+    }
+
+    public Puzzle(int rows, int cols, Map<Cell, Point> points) {
         this.rows = rows;
         this.cols = cols;
         this.points = Map.copyOf(points);
-        this.paths = Map.copyOf(paths);
 
-        // Map<Cell, Point> grid = new HashMap<>();
-        // for (int i = 0; i < rows; i++) {
-        //     for (int j = 0; j < cols; j++) {
-        //         grid.put(new Cell(j, i), null);
-        //     }
-        // }
-        // // overlay filled points
-        // grid.putAll(points);
-        // this.allPoints = Map.copyOf(grid);
+        Map<Cell, List<Cell>> sameNBs = sameNeighbors();
+        Map<Character, List<Cell>> endpoints = new HashMap<>();
+
+        for(Map.Entry<Cell, Point> p : points.entrySet()){
+            Cell cell = p.getKey();
+            Point point = p.getValue();
+            int same = sameNBs.get(cell).size();
+            boolean isRoot = point.isRoot();
+
+            char color = point.color();
+            if( (same == 1 && !isRoot) || (same == 0 && isRoot)){
+                endpoints
+                .computeIfAbsent(color, k -> new ArrayList<>())
+                .add(cell);
+            }
+        }
+        this.endpoints = endpoints;
+    }
+
+    //neighbors of same color
+    public Map<Cell, List<Cell>> sameNeighbors(){
+        Map<Cell, List<Cell>> neighbors = filledNeighbors();
+        Map<Cell, List<Cell>> sameNeighbors = new HashMap<>();
+        //go through all keys
+        for(Map.Entry<Cell, List<Cell>> entry : neighbors.entrySet()){
+            List<Cell> same = new ArrayList<>();
+            //go through list of neighbors
+            List<Cell> nbs = entry.getValue();
+            for(Cell cell : nbs){
+                if(nbs != null && points.get(entry.getKey()).color() == points.get(cell).color()) same.add(cell);
+            }
+            sameNeighbors.put(entry.getKey(), same);
+        }
+        return sameNeighbors;
+    }
+
+    //doesn't include null neighbors
+    public Map<Cell, List<Cell>> filledNeighbors(){
+        Map<Cell, List<Cell>> filledNeighbors = new HashMap<>();
+        for(Map.Entry<Cell, Point> entry : points.entrySet()){
+            List<Cell> filled = new ArrayList<>();
+            Cell cell = entry.getKey();
+            for(Cell nb : cell.neighbors(this)){
+               if(points.containsKey(nb)) filled.add(nb);
+            }
+            filledNeighbors.put(cell, filled);
+        }
+        return filledNeighbors;
     }
 
     //getter methods
     public Map<Cell, Point> getPoints(){
         return points;
     }
-    // public Map<Cell, Point> getAllPoints(){
-    //     return allPoints;
-    // }
     public int getRows(){
         return rows;
     }
     public int getCols(){
         return cols;
     }
-    public Map<Character, Path> getPaths(){
-        return paths;
+    public Map<Character, List<Cell>> endpoints(){
+        return endpoints;
     }
 
     //update puzzle after a move by creating a new one
     public Puzzle withMove(char color, Cell cell){
         Map<Cell, Point> newPoints = new HashMap<>(points);
         newPoints.put(cell, new Point(color, false));
-        //new path
-        Map<Character, Path> newPaths = new HashMap<>(paths);
-        Path oldPath = paths.get(color);
-        newPaths.put(color, oldPath.extend(cell));
-        return new Puzzle(rows, cols, newPoints, newPaths);
+
+        return new Puzzle(rows, cols, newPoints);
     }
 
     //isSolved
